@@ -107,6 +107,6 @@ def main(input_dir, output_file):
     print(f"Data written to {output_file}")
 
 if __name__ == "__main__":
-    input_directory = "/Users/tylerstephenson/Documents/Research/Hope/pdfs"
+    input_directory = config.get('DEFAULT', 'input_directory')
     output_excel = "summarized-pdfs.xlsx"
     main(input_directory, output_excel)
