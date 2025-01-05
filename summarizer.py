@@ -1,6 +1,9 @@
 import os
 import sys, configparser
 import fitz  # PyMuPDF
+from PIL import Image
+import pytesseract
+import io
 import pandas as pd
 import re
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
@@ -21,6 +24,20 @@ def extract_text_from_pdf(pdf_path):
                 text += page.get_text()
     except Exception as e:
         print(f"Error reading {pdf_path}: {e}")
+
+    if text == "":
+        print("Text was empty. Attempting to read image-based PDF file...")
+        with fitz.open(pdf_path) as doc:
+            for page_num in range(len(doc)):
+                images = doc[page_num].get_images(full=True)
+                for img_index, img in enumerate(images):
+                    xref = img[0]
+                    base_image = doc.extract_image(xref)
+                    image_bytes = base_image["image"]
+                    image = Image.open(io.BytesIO(image_bytes))
+                    page_text = pytesseract.image_to_string(image)  # Perform OCR
+                    text += f"Page {page_num + 1} - Image {img_index + 1}:\n{page_text}\n"
+
     return text
 
 def process_with_chatgpt(text):
@@ -97,14 +114,18 @@ def main(input_dir, output_file):
     for file_name in os.listdir(input_dir):
         if file_name.endswith('.pdf'):
             pdf_path = os.path.join(input_dir, file_name)
+            print('--------------------')
             print(f"Processing {file_name}...")
+            print('--------------------')
             text = extract_text_from_pdf(pdf_path)
             processed_data = process_with_chatgpt(text)
             record = construct_excel_row(str(processed_data), file_name, text)
             data.append(record)
 
     write_to_excel(data, output_file)
+    print('--------------------')
     print(f"Data written to {output_file}")
+    print('--------------------')
 
 if __name__ == "__main__":
     input_directory = config.get('DEFAULT', 'input_directory')
